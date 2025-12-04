@@ -1,0 +1,62 @@
+# Google Cloud Build - CI/CD Pipeline
+# Triggered on push to main branch
+
+substitutions:
+  _REGION: europe-west1
+  _REPOSITORY: dataflow-templates
+
+steps:
+  # Step 1: Install, Lint, and Test
+  - name: 'python:3.9-slim'
+    id: 'test'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install --quiet --upgrade pip
+        pip install --quiet -r app/requirements.txt
+        pip install --quiet flake8 pytest
+        echo "=== Linting ==="
+        flake8 app/ --max-line-length=120 --ignore=E501,W503
+        echo "=== Running Tests ==="
+        PYTHONPATH=. pytest tests/ -v --tb=short
+
+  # Step 2: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dataflow-pipeline:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dataflow-pipeline:latest'
+      - './app'
+    waitFor: ['test']
+
+  # Step 3: Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push'
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dataflow-pipeline']
+    waitFor: ['build']
+
+  # Step 4: Create Flex Template
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'flex-template'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud dataflow flex-template build \
+          gs://${PROJECT_ID}-dataflow-templates/templates/ecommerce-pipeline.json \
+          --image ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dataflow-pipeline:${SHORT_SHA} \
+          --sdk-language PYTHON \
+          --metadata-file app/metadata.json
+    waitFor: ['push']
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/dataflow-pipeline:latest'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+
+timeout: '1800s'
