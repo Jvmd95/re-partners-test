@@ -1,0 +1,53 @@
+{
+  "name": "E-Commerce Event Pipeline",
+  "description": "Real-time streaming pipeline that processes order, inventory, and user activity events from Pub/Sub, routes them to BigQuery and GCS with dead letter queue handling.",
+  "parameters": [
+    {
+      "name": "input_subscription",
+      "label": "Pub/Sub Subscription",
+      "helpText": "The Pub/Sub subscription to read events from. Format: projects/{project}/subscriptions/{subscription}",
+      "isOptional": false,
+      "regexes": ["^projects\\/[a-z][a-z0-9-]*\\/subscriptions\\/[a-zA-Z][a-zA-Z0-9_-]*$"]
+    },
+    {
+      "name": "output_bucket",
+      "label": "Output GCS Bucket",
+      "helpText": "GCS bucket for cold storage of events. Format: gs://{bucket-name}",
+      "isOptional": false,
+      "regexes": ["^gs:\\/\\/[a-z0-9][a-z0-9._-]*$"]
+    },
+    {
+      "name": "bq_dataset",
+      "label": "BigQuery Dataset",
+      "helpText": "BigQuery dataset for event tables. Format: {project}:{dataset} or {project}.{dataset}",
+      "isOptional": false,
+      "regexes": ["^[a-z][a-z0-9-]*[:.][a-zA-Z_][a-zA-Z0-9_]*$"]
+    },
+    {
+      "name": "dlq_topic",
+      "label": "Dead Letter Queue Topic",
+      "helpText": "Pub/Sub topic for failed messages. If not specified, derived from project. Format: projects/{project}/topics/{topic}",
+      "isOptional": true,
+      "regexes": ["^projects\\/[a-z][a-z0-9-]*\\/topics\\/[a-zA-Z][a-zA-Z0-9_-]*$"]
+    },
+    {
+      "name": "is_backfill",
+      "label": "Backfill Mode",
+      "helpText": "Enable batch mode for processing historical data instead of streaming from Pub/Sub",
+      "isOptional": true
+    },
+    {
+      "name": "s3_path",
+      "label": "Historical Data Path",
+      "helpText": "Path to historical data for backfill mode. Supports S3 or GCS paths with wildcards.",
+      "isOptional": true
+    },
+    {
+      "name": "window_size_seconds",
+      "label": "Window Size (seconds)",
+      "helpText": "Fixed window size in seconds for GCS file writes. Default: 60",
+      "isOptional": true
+    }
+  ]
+}
+
